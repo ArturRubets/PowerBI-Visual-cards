@@ -86,6 +86,12 @@
                         "numeric":true
                     }
                 },
+                "opacity": {
+                    "displayName": "Opacity",
+                    "type": {
+                        "numeric":true
+                    }
+                },
                 "borderRadius": {
                     "displayName": "Border radius",
                     "type": {
