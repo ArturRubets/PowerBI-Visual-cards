@@ -26,12 +26,12 @@ import VisualObjectInstance = powerbi.VisualObjectInstance;
 import DataView = powerbi.DataView;
 import VisualObjectInstanceEnumerationObject = powerbi.VisualObjectInstanceEnumerationObject;
 
-import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
+//import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 
-import { getValue, getCategoricalObjectValue, getValueMeasure } from "./objectEnumerationUtility";
+import { getValue, getCategoricalObjectValue, getValueMeasure, getNameMeasure } from "./objectEnumerationUtility";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
-import { linkVertical } from "d3";
+// import { linkVertical } from "d3";
 
 //было по умолчанию
 //import { CardSettings } from "./settings";
@@ -44,7 +44,7 @@ interface CardViewModel {
 
 interface CardDataPoint {
     url: string; // category data
-    title: string; // category data
+    header: string; // category data
     info: {
         label: string;
         value: PrimitiveValue;
@@ -64,7 +64,7 @@ interface CardSettings {
         height: number;
     };
 
-    title: {
+    header: {
         fontSize: number;
         fill: string;
     };
@@ -84,7 +84,7 @@ let defaultSettings: CardSettings = {
         borderRadius: 15,
         height: 100,
     },
-    title: {
+    header: {
         fontSize: 18,
         fill: "#000000",
     },
@@ -97,6 +97,7 @@ let defaultSettings: CardSettings = {
 
 function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardViewModel {
     let dataViews = options.dataViews;
+
     let viewModel: CardViewModel = {
         data: [],
         settings: <CardSettings>{}
@@ -106,6 +107,7 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         || !dataViews[0]
         || !dataViews[0].categorical
         || !dataViews[0].categorical.categories
+        || (dataViews[0].categorical.categories.length < 2)
         || !dataViews[0].categorical.categories[0].source
         || !dataViews[0].categorical.categories[1].source
         || !dataViews[0].categorical.values) {
@@ -130,10 +132,10 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
             borderRadius: getValue<number>(objects, 'image', 'borderRadius', defaultSettings.image.borderRadius),
             height: getValue<number>(objects, 'image', 'height', defaultSettings.image.height),
         },
-        title: {
-            fill: getValue<Fill>(objects, "title", "fill", { solid: { color: defaultSettings.title.fill } })
+        header: {
+            fill: getValue<Fill>(objects, "header", "fill", { solid: { color: defaultSettings.header.fill } })
                 .solid.color,
-            fontSize: getValue<number>(objects, "title", "fontSize", defaultSettings.title.fontSize)
+            fontSize: getValue<number>(objects, "header", "fontSize", defaultSettings.header.fontSize)
         },
         info: {
             fontSize: getValue<number>(objects, "info", "fontSize", defaultSettings.info.fontSize),
@@ -148,26 +150,31 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
     }
 
     for (let index = 0, len = Math.max(categoryImage.values.length, categoryTitle.values.length, dataValue[0].values.length); index < len; index++) {
-        const info: {colorValue:string, label:string, value:PrimitiveValue}[] = []
+        const info: { colorValue: string, label: string, value: PrimitiveValue }[] = []
 
-        // for (let j = 0; j < dataValue.values.length; j++) {
-        //     colorValues.push(
-        //         getCategoricalObjectValue<Fill>(
-        //             category,
-        //             index,
-        //             'colorSelector',
-        //             'fill' + (j + 1),
-        //             defaultColor
-        //         ).solid.color
-        //     );
-        // }
+        for (let j = 0; j < dataValue.length; j++) {
+            let indexCategory = index;
+            info.push(
+                {
+                    colorValue: getCategoricalObjectValue<Fill>(
+                        categoryImage,
+                        indexCategory,
+                        'colorSelector' + (j+1),
+                        'fill',
+                        defaultColor
+                    ).solid.color,
+                    label: <string>getNameMeasure(dataValue, index, j),
+                    value: getValueMeasure(dataValue, index, j)
+                }
+            )
+        }
 
         const selectionId: ISelectionId = host.createSelectionIdBuilder().withCategory(categoryImage, index).createSelectionId();
 
         cardDataPoints.push({
             selectionId: selectionId,
             url: `${categoryImage.values[index]}`,
-            title: `${categoryTitle.values[index]}`,
+            header: `${categoryTitle.values[index]}`,
             info: info
         })
 
@@ -184,12 +191,12 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
 
 
 export class Visual implements IVisual {
-    private svg: Selection<any>;
+    // private svg: Selection<any>;
     private host: IVisualHost;
     private selectionManager: ISelectionManager;
     private cardDataPoints: CardDataPoint[];
     private cardDataSettings: CardSettings;
-    private tooltipServiceWrapper: ITooltipServiceWrapper;
+    //private tooltipServiceWrapper: ITooltipServiceWrapper;
     private element: HTMLElement;
 
     static Config = {
@@ -197,38 +204,117 @@ export class Visual implements IVisual {
     };
 
     constructor(options: VisualConstructorOptions) {
-        console.log('Visual constructor', options);
-        this.target = options.element;
-        this.updateCount = 0;
-        if (document) {
-            const new_p: HTMLElement = document.createElement("p");
-            new_p.appendChild(document.createTextNode("Update count:"));
-            const new_em: HTMLElement = document.createElement("em");
-            this.textNode = document.createTextNode(this.updateCount.toString());
-            new_em.appendChild(this.textNode);
-            new_p.appendChild(new_em);
-            this.target.appendChild(new_p);
-        }
+
+
+
+        this.host = options.host;
+        this.element = options.element;
+        this.selectionManager = options.host.createSelectionManager();
+
+
+
+        // this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService, options.element);
+
     }
 
     public update(options: VisualUpdateOptions) {
-        this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
-        console.log('Visual update', options);
-        if (this.textNode) {
-            this.textNode.textContent = (this.updateCount++).toString();
+
+
+        let viewModel: CardViewModel = visualTransform(options, this.host);
+        let settings = this.cardDataSettings = viewModel.settings;
+        this.cardDataPoints = viewModel.data;
+        console.log(options.dataViews[0].categorical.categories);
+        console.log(viewModel);
+
+
+    }
+
+    public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstanceEnumeration {
+        let objectName = options.objectName;
+        let objectEnumeration: VisualObjectInstance[] = [];
+
+        if (!this.cardDataSettings ||
+            !this.cardDataPoints) {
+            return objectEnumeration;
+        }
+
+        switch (objectName) {
+            case 'card':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        borderRadius: this.cardDataSettings.card.borderRadius,
+                        width: this.cardDataSettings.card.width
+                    },
+                    selector: null
+                });
+                break;
+            case 'colorSelector1':
+                let numberMeasure = 1; //номер меры 
+                this.colorSelector(numberMeasure, objectEnumeration, objectName);
+                break;
+            case 'colorSelector2':
+                numberMeasure = 2; //номер меры 
+                this.colorSelector(numberMeasure, objectEnumeration, objectName);
+                break;
+            case 'colorSelector3':
+                numberMeasure = 3; //номер меры 
+                this.colorSelector(numberMeasure, objectEnumeration, objectName);
+                break;
+            case 'colorSelector4':
+                numberMeasure = 4; //номер меры 
+                this.colorSelector(numberMeasure, objectEnumeration, objectName);
+                break;
+            case 'image':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        borderRadius: this.cardDataSettings.image.borderRadius,
+                        height: this.cardDataSettings.image.height
+                    },
+                    selector: null
+                });
+                break;
+            case 'header':
+            case 'info':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        fillLabel: this.cardDataSettings.info.fillLabel,
+                        fontSize: this.cardDataSettings.info.fontSize
+                    },
+                    selector: null
+                });
+                break;
+        };
+        return objectEnumeration;
+    }
+
+    private colorSelector(numberMeasure:number, objectEnumeration: VisualObjectInstance[], objectName:string) {
+        for (let i = 0; i < this.cardDataPoints.length; i++) {
+            if (this.cardDataPoints[i].info[numberMeasure - 1]) {
+                objectEnumeration.push({
+                    objectName: objectName,
+                    displayName: 'Card ' + (i + 1) + ': ' + this.cardDataPoints[i].info[numberMeasure - 1].label,
+                    properties: {
+                        fill: {
+                            solid: {
+                                color: this.cardDataPoints[i].info[numberMeasure - 1].colorValue
+                            }
+                        }
+                    },
+                    propertyInstanceKind: {
+                        fill: VisualEnumerationInstanceKinds.ConstantOrRule
+                    },
+                    altConstantValueSelector: this.cardDataPoints[i].selectionId.getSelector(),
+                    selector: dataViewWildcard.createDataViewWildcardSelector(dataViewWildcard.DataViewWildcardMatchingOption.InstancesAndTotals)
+                });
+            }
         }
     }
 
-    private static parseSettings(dataView: DataView): VisualSettings {
-        return <VisualSettings>VisualSettings.parse(dataView);
+    public destroy(): void {
+        // Perform any cleanup tasks here
     }
 
-    /**
-     * This function gets called for each of the objects defined in the capabilities files and allows you to select which of the
-     * objects and properties you want to expose to the users in the property pane.
-     *
-     */
-    public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstance[] | VisualObjectInstanceEnumerationObject {
-        return VisualSettings.enumerateObjectInstances(this.settings || VisualSettings.getDefault(), options);
-    }
 }

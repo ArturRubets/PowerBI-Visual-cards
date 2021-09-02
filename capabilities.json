@@ -1,8 +1,13 @@
 {
     "dataRoles": [
         {
-            "displayName": "Category Data",
-            "name": "category",
+            "displayName": "URL",
+            "name": "categoryUrl",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Header",
+            "name": "categoryHeader",
             "kind": "Grouping"
         },
         {
@@ -12,11 +17,11 @@
         }
     ],
     "objects": {
-        "dataPoint": {
-            "displayName": "Data colors",
+        "colorSelector1": {
+            "displayName": "Data colors for measure 1",
             "properties": {
-                "defaultColor": {
-                    "displayName": "Default color",
+                "fill": {
+                    "displayName": "Color",
                     "type": {
                         "fill": {
                             "solid": {
@@ -24,34 +29,121 @@
                             }
                         }
                     }
-                },
-                "showAllDataPoints": {
-                    "displayName": "Show all",
+                }               
+            }
+        },
+        "colorSelector2": {
+            "displayName": "Data colors for measure 2",
+            "properties": {
+                "fill": {
+                    "displayName": "Color",
                     "type": {
-                        "bool": true
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }               
+            }
+        },
+        "colorSelector3": {
+            "displayName": "Data colors for measure 3",
+            "properties": {
+                "fill": {
+                    "displayName": "Color",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }               
+            }
+        },
+        "colorSelector4": {
+            "displayName": "Data colors for measure 4",
+            "properties": {
+                "fill": {
+                    "displayName": "Color",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }               
+            }
+        },
+        "card": {
+            "displayName": "Card",
+            "properties": {
+                "width": {
+                    "displayName": "Width",
+                    "type": {
+                        "numeric":true
+                    }
+                },
+                "borderRadius": {
+                    "displayName": "Border radius",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "image": {
+            "displayName": "Image",
+            "properties": {
+                "height": {
+                    "displayName": "Height",
+                    "type": {
+                        "numeric":true
+                    }
+                },
+                "borderRadius": {
+                    "displayName": "Border radius",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "header": {
+            "displayName": "Header",
+            "properties": {
+                "fontSize": {
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric":true
                     }
                 },
                 "fill": {
-                    "displayName": "Fill",
+                    "displayName": "Color",
                     "type": {
                         "fill": {
-                            "solid": {
-                                "color": true
-                            }
+                            "solid": {"color":true}
                         }
                     }
-                },
-                "fillRule": {
-                    "displayName": "Color saturation",
+                }
+            }
+        },
+        "info": {
+            "displayName": "Information",
+            "properties": {
+                "fontSize": {
+                    "displayName": "Font size",
                     "type": {
-                        "fill": {}
+                        "numeric":true
                     }
                 },
-                 "fontSize": {
-                    "displayName": "Text Size",
+                "fillLabel": {
+                    "displayName": "Color",
                     "type": {
-                        "formatting": {
-                            "fontSize": true
+                        "fill": {
+                            "solid": {"color":true}
                         }
                     }
                 }
@@ -62,12 +154,18 @@
         {
             "categorical": {
                 "categories": {
-                    "for": {
-                        "in": "category"
-                    },
-                    "dataReductionAlgorithm": {
-                        "top": {}
-                    }
+                    "select": [
+                        {
+                            "for": {
+                                "in": "categoryUrl"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "categoryHeader"
+                            }
+                        }
+                    ]
                 },
                 "values": {
                     "select": [

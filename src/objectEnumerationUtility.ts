@@ -31,13 +31,23 @@ export function getValue<T>(objects: DataViewObjects,
     return defaultValue;
 }
 
-export function getValueMeasure(valuesMeasures: DataViewValueColumns, nameMeasure: string, index: number):PrimitiveValue{
+export function getValueMeasure(valuesMeasures: DataViewValueColumns, indexCard: number, indexMeasure: number):PrimitiveValue{
     if(valuesMeasures){
-        for(let i = 0; i < valuesMeasures.length; i++){
-            let value = valuesMeasures[i];
-            if(value.source.displayName === nameMeasure){
-                return value.values[index];
+        let values = valuesMeasures[indexMeasure];
+        if(values){
+            if(values.values){
+                return values.values[indexCard];
             }
+        }
+    }
+    return null;
+}
+
+export function getNameMeasure(valuesMeasures: DataViewValueColumns, indexCard: number, indexMeasure: number):PrimitiveValue{
+    if(valuesMeasures){
+        let values = valuesMeasures[indexMeasure];
+        if(values){
+            return values.source.displayName;
         }
     }
     return null;
