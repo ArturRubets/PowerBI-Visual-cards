@@ -7,13 +7,8 @@ import {
     select as d3Select
 } from "d3-selection";
 const getEvent = () => require("d3-selection").event;
-import {
-    scaleLinear,
-    scaleBand
-} from "d3-scale";
 
 type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
-import ScaleLinear = d3.ScaleLinear;
 
 //powerbi.visuals
 import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
@@ -26,6 +21,7 @@ import PrimitiveValue = powerbi.PrimitiveValue;
 import VisualObjectInstanceEnumeration = powerbi.VisualObjectInstanceEnumeration;
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 import VisualEnumerationInstanceKinds = powerbi.VisualEnumerationInstanceKinds;
+import "regenerator-runtime/runtime"; //необходим для подсказок
 
 //Было по умолчанию
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
@@ -36,14 +32,12 @@ import VisualObjectInstance = powerbi.VisualObjectInstance;
 import DataView = powerbi.DataView;
 import VisualObjectInstanceEnumerationObject = powerbi.VisualObjectInstanceEnumerationObject;
 
-import {createTooltipServiceWrapper, ITooltipServiceWrapper} from "powerbi-visuals-utils-tooltiputils";
+import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 
 import { getValue, getCategoricalObjectValue, getValueMeasure, getNameMeasure } from "./objectEnumerationUtility";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { image } from "d3";
-// import { linkVertical } from "d3";
-
 
 
 interface CardViewModel {
@@ -88,12 +82,12 @@ interface CardSettings {
 let defaultSettings: CardSettings = {
     card: {
         borderRadius: 15,
-        width: 100,
+        width: 150,
         opacity: 100,
     },
     image: {
         borderRadius: 15,
-        height: 100,
+        height: 170,
     },
     header: {
         fontSize: 18,
@@ -200,8 +194,6 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
 
 
 
-
-
 export class Visual implements IVisual {
     private svg: Selection<any>;
     private host: IVisualHost;
@@ -214,35 +206,44 @@ export class Visual implements IVisual {
     private cardSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
 
 
+    private isLandingPageOn: boolean;
+    private LandingPageRemoved: boolean;
+    private LandingPage: Selection<any>;
 
-    static Config = {
-        card: {
-            indentOutX: 20,
-            indentInnerX: 10,
-            indentOutY: 20,
-            indentInnerY: 10,
-            solidOpacity: 1,
-            transparentOpacity: 0.4,
-            paddingBottom: 10
-        },
+    static Config() {
+        let imageIndentX = 10;
+        let imageIndentY = 10;
+        let imageWidth = defaultSettings.card.width - imageIndentX * 2;
 
-        image: {
-            indentX: 10,
-            indentY: 10,
-        },
+        return {
+            card: {
+                indentOutX: 20,
+                indentInnerX: 10,
+                indentOutY: 20,
+                indentInnerY: 10,
+                solidOpacity: 1,
+                transparentOpacity: 0.4,
+                paddingBottom: 10
+            },
 
-        header: {
-            paddingTop: 15
-        },
+            image: {
+                indentX: 10,
+                indentY: 10,
+                width: imageWidth,
+            },
 
-        info: {
-            paddingTop: 15
+            header: {
+                paddingTop: 15
+            },
+
+            info: {
+                paddingTop: 15
+            }
         }
+    }
 
-    };
 
     constructor(options: VisualConstructorOptions) {
-        debugger
         this.host = options.host;
         this.element = options.element;
         this.selectionManager = options.host.createSelectionManager();
@@ -252,13 +253,12 @@ export class Visual implements IVisual {
             this.syncSelectionState(this.cardSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
         });
 
-        console.log(this.host.tooltipService);
-        console.log(createTooltipServiceWrapper(this.host.tooltipService, options.element));
-        
-        
-        //this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService, options.element);
+
+        this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService, options.element);
+
 
     }
+
     private syncSelectionState(
         selection: Selection<CardDataPoint>,
         selectionIds: ISelectionId[]
@@ -282,8 +282,8 @@ export class Visual implements IVisual {
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, cardDataPoint.selectionId);
 
             const opacity: number = isSelected
-                ? Visual.Config.card.solidOpacity
-                : Visual.Config.card.transparentOpacity;
+                ? Visual.Config().card.solidOpacity
+                : Visual.Config().card.transparentOpacity;
 
             d3Select(this)
                 .style("fill-opacity", opacity)
@@ -301,8 +301,47 @@ export class Visual implements IVisual {
         });
     }
 
+    private createSampleLandingPage(): Element {
+        let div = document.createElement("div");
+
+        let header = document.createElement("h1");
+        header.textContent = "Sample Bar Chart Landing Page";
+        header.setAttribute("class", "LandingPage");
+        let p1 = document.createElement("a");
+        p1.setAttribute("class", "LandingPageHelpLink");
+        p1.textContent = "Learn more about Landing page";
+
+        p1.addEventListener("click", () => {
+            this.host.launchUrl("https://microsoft.github.io/PowerBI-visuals/docs/overview/");
+        });
+
+        div.appendChild(header);
+        div.appendChild(p1);
+
+        return div;
+    }
+
+    private handleLandingPage(options: VisualUpdateOptions) {
+        if (!options.dataViews || !options.dataViews.length) {
+            if (!this.isLandingPageOn) {
+                this.isLandingPageOn = true;
+                const SampleLandingPage: Element = this.createSampleLandingPage();
+                this.element.appendChild(SampleLandingPage);
+
+                this.LandingPage = d3Select(SampleLandingPage);
+            }
+
+        } else {
+            if (this.isLandingPageOn && !this.LandingPageRemoved) {
+                this.LandingPageRemoved = true;
+                this.LandingPage.remove();
+            }
+        }
+    }
+
     public update(options: VisualUpdateOptions) {
 
+        this.handleLandingPage(options);
         let viewModel: CardViewModel = visualTransform(options, this.host);
 
         let settings = this.cardDataSettings = viewModel.settings;
@@ -311,13 +350,14 @@ export class Visual implements IVisual {
         let width = options.viewport.width; //ширина визуального элемента
         let height = options.viewport.height;   //высота визуального элемента
 
+
         let translates = this.getTranslateCards(viewModel, width);
 
         let heightSvg = Math.max(...translates.translateY) + this.getHeightCard(viewModel);
 
         if (height < heightSvg) {
             this.turnOnScrollable();
-            heightSvg += Visual.Config.card.indentOutY;
+            heightSvg += Visual.Config().card.indentOutY;
         }
         else {
             this.turnOffScrollable();
@@ -344,7 +384,9 @@ export class Visual implements IVisual {
 
         const cardSelectionMerged = this.cardSelection
             .enter()
-            .append('rect')
+            .append('g')
+            .attr('transform',
+                (d, i) => 'translate(' + translates.translateX[i] + ',' + translates.translateY[i] + ')')
             .merge(<any>this.cardSelection);
 
 
@@ -353,31 +395,78 @@ export class Visual implements IVisual {
         const opacity: number = viewModel.settings.card.opacity / 100;
 
         cardSelectionMerged
+            .append("rect")
             .attr("width", settings.card.width)
             .attr("height", this.getHeightCard(viewModel))
-            .attr("y", (d, i) => translates.translateY[i])
-            .attr("x", (d, i) => translates.translateX[i])
+            .attr("y", 0)
+            .attr("x", 0)
             .style("fill-opacity", opacity)
             .style("stroke-opacity", opacity)
             .style("fill", "#ffddff");
 
+        cardSelectionMerged
+            .append('defs')
+            .append("clipPath")
+            .attr("id", "round-corner")
+            .append("rect")
+            .attr("x", Visual.Config().image.indentX)
+            .attr("y", Visual.Config().image.indentY)
+            .attr("width", settings.card.width - Visual.Config().image.indentX * 2)
+            .attr('height', settings.image.height)
+            .attr('rx', settings.image.borderRadius);
 
+
+        cardSelectionMerged
+            .append("image")
+            .attr('x', Visual.Config().image.indentX)
+            .attr('y', Visual.Config().image.indentY)
+            .attr('height', settings.image.height)
+            .attr('width', Visual.Config().image.width)
+            .attr('xlink:href', (d, i) => d.url)
+            .attr("clip-path", "url(#round-corner)")
+            .attr('preserveAspectRatio', 'xMidYMid slice');
+
+        // cardSelectionMerged
+        //     .append('text')
+        //     .attr('y', title.coordinateY)
+        //     .attr('x', title.coordinateX)
+        //     .attr('text-anchor', 'middle')
+        //     .style('font-size', settings.header.fontSize)
+        //     .style('fill', settings.header.fill)
+        //     .text((d, i) => d.header);
+
+
+
+        console.log(this.element);
+
+
+        this.tooltipServiceWrapper.addTooltip(cardSelectionMerged,
+            (datapoint: CardDataPoint) => this.getTooltipData(datapoint),
+            (datapoint: CardDataPoint) => datapoint.selectionId
+        );
 
         cardSelectionMerged.on('click', (d) => {
 
             // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
-           // if (this.host.allowInteractions) {
-                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
+            // if (this.host.allowInteractions) {
+            const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
 
-                this.selectionManager
-                    .select(d.selectionId, isCtrlPressed)
-                    .then((ids: ISelectionId[]) => {
-                        this.syncSelectionState(cardSelectionMerged, ids);
-                    });
+            this.selectionManager
+                .select(d.selectionId, isCtrlPressed)
+                .then((ids: ISelectionId[]) => {
+                    this.syncSelectionState(cardSelectionMerged, ids);
+                });
 
-                (<Event>getEvent()).stopPropagation();
+            (<Event>getEvent()).stopPropagation();
             //}
         });
+    }
+    private getTooltipData(value: CardDataPoint): VisualTooltipDataItem[] {
+        return [{
+            displayName: value.url,
+            value: value.header.toString(),
+            color: "#ff00ff"
+        }];
     }
 
 
@@ -387,24 +476,23 @@ export class Visual implements IVisual {
             translateY = new Array<number>(quantityCards);
         for (let i = 0; i < quantityCards; i++) {
             if (i === 0) {
-                translateX[i] = Visual.Config.card.indentOutX;
-                translateY[i] = Visual.Config.card.indentOutY;
+                translateX[i] = Visual.Config().card.indentOutX;
+                translateY[i] = Visual.Config().card.indentOutY;
             } else {
                 let prevCardsX = translateX[i - 1] + cards.settings.card.width;
-                let currentCardWidth = Visual.Config.card.indentInnerX + cards.settings.card.width + Visual.Config.card.indentOutX;
+                let currentCardWidth = Visual.Config().card.indentInnerX + cards.settings.card.width + Visual.Config().card.indentOutX;
 
                 if (widthVisual > prevCardsX + currentCardWidth) {
-                    translateX[i] = translateX[i - 1] + cards.settings.card.width + Visual.Config.card.indentInnerX;
+                    translateX[i] = translateX[i - 1] + cards.settings.card.width + Visual.Config().card.indentInnerX;
                     translateY[i] = translateY[i - 1];
                 } else {
-                    translateX[i] = Visual.Config.card.indentOutX;
-                    translateY[i] = translateY[i - 1] + this.getHeightCard(cards) + Visual.Config.card.indentInnerY;
+                    translateX[i] = Visual.Config().card.indentOutX;
+                    translateY[i] = translateY[i - 1] + this.getHeightCard(cards) + Visual.Config().card.indentInnerY;
                 }
             }
         }
         return { translateX, translateY };
     }
-
 
     private getHeightCard(cards: CardViewModel): number {
 
@@ -421,10 +509,10 @@ export class Visual implements IVisual {
         let imageViewModel = cards.settings.image;
         let infoViewModel = cards.settings.info;
 
-        let configCard = Visual.Config.card;
-        let configImage = Visual.Config.image;
-        let configHeader = Visual.Config.header;
-        let configInfo = Visual.Config.info;
+        let configCard = Visual.Config().card;
+        let configImage = Visual.Config().image;
+        let configHeader = Visual.Config().header;
+        let configInfo = Visual.Config().info;
 
 
         let imageSize = configImage.indentY * 2 + imageViewModel.height;
@@ -433,7 +521,6 @@ export class Visual implements IVisual {
 
         return imageSize + headerSize + infoSize;
     }
-
 
     private turnOnScrollable(): void {
         this.element.style.overflowY = 'scroll';
