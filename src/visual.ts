@@ -273,7 +273,7 @@ export class Visual implements IVisual {
                 indentOutY: 20,
                 indentInnerY: 10,
                 solidOpacity: 1,
-                transparentOpacity: 0.4,
+                transparentOpacity: 0.5,
                 paddingBottom: 10,
                 fill: "#ffffff",
             },
@@ -329,7 +329,7 @@ export class Visual implements IVisual {
         }
 
         if (!selectionIds.length) {
-            const opacity: number = this.cardDataSettings.card.opacity / 50;
+            const opacity: number = this.cardDataSettings.card.opacity / 100;
             selection
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
