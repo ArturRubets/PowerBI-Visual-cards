@@ -98,7 +98,7 @@ let defaultSettings: CardSettings = {
         fill: "#000000",
     },
     label: {
-        fill: "#000000",  //DADADA
+        fill: "#909090", 
         fontSize: 15,
     },
     data: {
@@ -152,12 +152,15 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         },
         label: {
             fontSize: getValue<number>(objects, "label", "fontSize", defaultSettings.label.fontSize),
-            fill: getValue<string>(objects, "label", "fill", defaultSettings.label.fill)
+            fill: getValue<Fill>(objects, "label", "fill", { solid: { color: defaultSettings.label.fill } })
+            .solid.color,
         },
         data:{
             fontSize: getValue<number>(objects, "data", "fontSize", defaultSettings.data.fontSize),
         }
     }
+    console.log(cardSettings);
+    
 
     let defaultColor: Fill = {
         solid: {
@@ -266,12 +269,13 @@ export class Visual implements IVisual {
         return {
             card: {
                 indentOutX: 20,
-                indentInnerX: 10,
+                indentInnerX: 15,
                 indentOutY: 20,
                 indentInnerY: 10,
                 solidOpacity: 1,
                 transparentOpacity: 0.4,
-                paddingBottom: 10
+                paddingBottom: 10,
+                fill: "#ffffff",
             },
 
             image: {
@@ -401,152 +405,7 @@ export class Visual implements IVisual {
         }
     }
 
-    public update(options: VisualUpdateOptions) {
-
-        this.handleLandingPage(options);
-        let viewModel: CardViewModel = visualTransform(options, this.host);
-
-        let settings = this.cardDataSettings = viewModel.settings;
-        this.cardDataPoints = viewModel.data;
-
-        
-        this.quantityMeasures = this.cardDataPoints[0].data.length;
-        this.quantityCard = this.cardDataPoints.length;
-
-        let width = options.viewport.width; //ширина визуального элемента
-        let height = options.viewport.height;   //высота визуального элемента
-
-
-        let translates = this.getTranslateCards(viewModel, width);
-
-        let heightSvg = Math.max(...translates.translateY) + this.getHeightCard(viewModel);
-
-        if (height < heightSvg) {
-            this.turnOnScrollable();
-            heightSvg += this.config().card.indentOutY;
-        }
-        else {
-            this.turnOffScrollable();
-        }
-
-
-        this.element.innerHTML = null;
-        this.svg = d3Select(this.element)
-            .append('svg')
-            .classed('cardsVisual', true);
-
-        this.cardContainer = this.svg
-            .append('g')
-            .classed('cardContainer', true);
-
-        this.svg
-            .attr("width", width)
-            .attr("height", heightSvg);
-
-        this.cardSelection = this.cardContainer
-            .selectAll('.card')
-            .data(this.cardDataPoints);
-
-
-        const opacity: number = viewModel.settings.card.opacity / 100;
-
-
-        const cardSelectionMerged = this.cardSelection
-            .enter()
-            .append('g')
-            .attr('transform',
-                (d, i) => 'translate(' + translates.translateX[i] + ',' + translates.translateY[i] + ')')
-            .merge(<any>this.cardSelection);
-
-
-        cardSelectionMerged.classed('bar', true);
-
-
-        cardSelectionMerged
-            .append("rect")
-            .attr("width", settings.card.width)
-            .attr("height", this.getHeightCard(viewModel)) 
-            .attr("y", 0)
-            .attr("x", 0)     
-            .style("fill", "#ffddff")
-            .attr('rx', settings.card.borderRadius);
-
-        cardSelectionMerged
-            .append('defs')
-            .append("clipPath")
-            .attr("id", "round-corner")
-            .append("rect")
-            .attr("x", this.config().image.indentX)
-            .attr("y", this.config().image.indentY)
-            .attr("width", settings.card.width - this.config().image.indentX * 2)
-            .attr('height', settings.image.height)
-            .attr('rx', settings.image.borderRadius);
-
-
-
-        cardSelectionMerged
-            .append("image")
-            .attr('x', this.config().image.coordinateX)
-            .attr('y', this.config().image.coordinateY)
-            .attr('height', settings.image.height)
-            .attr('width', this.config().image.width)
-            .attr('xlink:href', (d, i) => d.url)
-            .attr("clip-path", "url(#round-corner)")
-            .attr('preserveAspectRatio', 'xMidYMid slice');
-
-        cardSelectionMerged
-            .append('text')
-            .attr('y', this.config().header.coordinateY)
-            .attr('x', this.config().header.coordinateX)
-            .attr('text-anchor', 'middle')
-            .style('font-size', settings.header.fontSize)
-            .style('fill', settings.header.fill)
-            .text((d, i) => d.header);
-
-            
-        for (let j = 0; j < this.quantityMeasures; j++) {
-            cardSelectionMerged
-                .append('text')
-                .attr('y', this.config().label.coordinate[j].y)
-                .attr('x', this.config().label.coordinate[j].x)
-                .style('font-size', settings.label.fontSize)
-                .style('fill', settings.label.fill)
-                .text((d, i) => d.label[j].value);
-
-            cardSelectionMerged
-                .append('text')
-                .attr('y', this.config().data.coordinate[j].y)
-                .attr('x', this.config().data.coordinate[j].x)
-                .attr('text-anchor', 'end')
-                .style('font-size', settings.data.fontSize)
-                .style('fill', (d, i) => d.data[j].fill)
-                .text((d, i) => d.data[j].value);
-        }
-
-
-        this.tooltipServiceWrapper.addTooltip(cardSelectionMerged,
-            (datapoint: CardDataPoint) => this.getTooltipData(datapoint),
-            (datapoint: CardDataPoint) => datapoint.selectionId
-        );
-
-        
-
-        cardSelectionMerged.on('click', (d) => {
-
-            // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
-            // if (this.host.allowInteractions) {
-            const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
-
-            this.selectionManager
-                .select(d.selectionId, isCtrlPressed)
-                .then((ids: ISelectionId[]) => {
-                    this.syncSelectionState(cardSelectionMerged, ids);
-                });
-
-            (<Event>getEvent()).stopPropagation();
-            //}
-        });
-    }
+   
     private getTooltipData(value: CardDataPoint): VisualTooltipDataItem[] {
         return [{
             displayName: value.url,
@@ -712,4 +571,169 @@ export class Visual implements IVisual {
         // Perform any cleanup tasks here
     }
 
+    private handleClick(barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>) {
+        // Clear selection when clicking outside a bar
+        this.svg.on('click', (d) => {
+            //if (this.host.allowInteractions) {
+                this.selectionManager
+                    .clear()
+                    .then(() => {
+                        this.syncSelectionState(barSelection, []);
+                    });
+            //}
+        });
+    }
+
+    public update(options: VisualUpdateOptions) {
+
+        this.handleLandingPage(options);
+        let viewModel: CardViewModel = visualTransform(options, this.host);
+
+        let settings = this.cardDataSettings = viewModel.settings;
+        this.cardDataPoints = viewModel.data;
+        console.log(settings);
+        
+        
+        this.quantityMeasures = this.cardDataPoints[0].data.length;
+        this.quantityCard = this.cardDataPoints.length;
+
+        let width = options.viewport.width; //ширина визуального элемента
+        let height = options.viewport.height;   //высота визуального элемента
+
+
+        let translates = this.getTranslateCards(viewModel, width);
+
+        let heightAllCards = Math.max(...translates.translateY) + this.getHeightCard(viewModel);
+
+        if (height < heightAllCards) {
+            this.turnOnScrollable();
+            heightAllCards += this.config().card.indentOutY;
+        }
+        else {
+            this.turnOffScrollable();
+        }
+
+
+        this.element.innerHTML = null;
+        this.svg = d3Select(this.element)
+            .append('svg')
+            .classed('cardsVisual', true);
+
+        this.cardContainer = this.svg
+            .append('g')
+            .classed('cardContainer', true);
+
+        this.svg
+            .attr("width", width)
+            .attr("height", Math.max(heightAllCards, height));
+
+        this.cardSelection = this.cardContainer
+            .selectAll('.card')
+            .data(this.cardDataPoints);
+
+
+        const opacity: number = viewModel.settings.card.opacity / 100;
+
+
+        const cardSelectionMerged = this.cardSelection
+            .enter()
+            .append('g')
+            .attr('transform',
+                (d, i) => 'translate(' + translates.translateX[i] + ',' + translates.translateY[i] + ')')
+            .merge(<any>this.cardSelection);
+
+
+        cardSelectionMerged.classed('card', true);
+
+
+        cardSelectionMerged
+            .append("rect")
+            .attr("width", settings.card.width)
+            .attr("height", this.getHeightCard(viewModel)) 
+            .attr("y", 0)
+            .attr("x", 0)     
+            .style("fill", this.config().card.fill)
+            .attr('rx', settings.card.borderRadius);
+
+        cardSelectionMerged
+            .append('defs')
+            .append("clipPath")
+            .attr("id", "round-corner")
+            .append("rect")
+            .attr("x", this.config().image.indentX)
+            .attr("y", this.config().image.indentY)
+            .attr("width", settings.card.width - this.config().image.indentX * 2)
+            .attr('height', settings.image.height)
+            .attr('rx', settings.image.borderRadius);
+
+
+
+        cardSelectionMerged
+            .append("image")
+            .attr('x', this.config().image.coordinateX)
+            .attr('y', this.config().image.coordinateY)
+            .attr('height', settings.image.height)
+            .attr('width', this.config().image.width)
+            .attr('xlink:href', (d, i) => d.url)
+            .attr("clip-path", "url(#round-corner)")
+            .attr('preserveAspectRatio', 'xMidYMid slice');
+
+        cardSelectionMerged
+            .append('text')
+            .attr('y', this.config().header.coordinateY)
+            .attr('x', this.config().header.coordinateX)
+            .attr('text-anchor', 'middle')
+            .style('font-size', settings.header.fontSize)
+            .style('fill', settings.header.fill)
+            .text((d, i) => d.header);
+
+            console.log(settings.label.fill);
+            
+        for (let j = 0; j < this.quantityMeasures; j++) {
+            //label
+            cardSelectionMerged
+                .append('text')
+                .attr('y', this.config().label.coordinate[j].y)
+                .attr('x', this.config().label.coordinate[j].x)
+                .style('font-size', settings.label.fontSize)
+                .style('fill', settings.label.fill)
+                .text((d, i) => d.label[j].value);
+
+            //data
+            cardSelectionMerged
+                .append('text')
+                .attr('y', this.config().data.coordinate[j].y)
+                .attr('x', this.config().data.coordinate[j].x)
+                .attr('text-anchor', 'end')
+                .style('font-size', settings.data.fontSize)
+                .style('fill', (d, i) => d.data[j].fill)
+                .text((d, i) => d.data[j].value);
+        }
+
+
+        this.tooltipServiceWrapper.addTooltip(cardSelectionMerged,
+            (datapoint: CardDataPoint) => this.getTooltipData(datapoint),
+            (datapoint: CardDataPoint) => datapoint.selectionId
+        );
+
+        
+
+        cardSelectionMerged.on('click', (d) => {
+
+            // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
+            // if (this.host.allowInteractions) {
+            const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
+
+            this.selectionManager
+                .select(d.selectionId, isCtrlPressed)
+                .then((ids: ISelectionId[]) => {
+                    this.syncSelectionState(cardSelectionMerged, ids);
+                });
+
+            (<Event>getEvent()).stopPropagation();
+            //}
+        });
+
+        this.handleClick(cardSelectionMerged);
+    }
 }
