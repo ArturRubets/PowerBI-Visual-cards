@@ -34,7 +34,7 @@
                             }
                         }
                     }
-                }               
+                }            
             }
         },
         "colorSelector2": {
@@ -49,7 +49,7 @@
                             }
                         }
                     }
-                }               
+                }          
             }
         },
         "colorSelector3": {
@@ -64,7 +64,7 @@
                             }
                         }
                     }
-                }               
+                }      
             }
         },
         "colorSelector4": {
@@ -79,7 +79,7 @@
                             }
                         }
                     }
-                }               
+                }
             }
         },
         "card": {
@@ -141,8 +141,8 @@
                 }
             }
         },
-        "info": {
-            "displayName": "Information",
+        "label": {
+            "displayName": "Labels",
             "properties": {
                 "fontSize": {
                     "displayName": "Font size",
@@ -150,12 +150,23 @@
                         "numeric":true
                     }
                 },
-                "fillLabel": {
+                "fill": {
                     "displayName": "Color",
                     "type": {
                         "fill": {
                             "solid": {"color":true}
                         }
+                    }
+                }
+            }
+        },
+        "data": {
+            "displayName": "Data",
+            "properties": {
+                "fontSize": {
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric":true
                     }
                 }
             }

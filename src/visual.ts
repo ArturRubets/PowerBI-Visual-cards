@@ -37,7 +37,6 @@ import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-vis
 import { getValue, getCategoricalObjectValue, getValueMeasure, getNameMeasure } from "./objectEnumerationUtility";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
-import { image } from "d3";
 
 
 interface CardViewModel {
@@ -48,10 +47,12 @@ interface CardViewModel {
 interface CardDataPoint {
     url: string; // category data
     header: string; // category data
-    info: {
-        label: string;
+    label: {
+        value: string;
+    }[];
+    data: {
         value: PrimitiveValue;
-        colorValue: string;
+        fill: string;
     }[];
     selectionId: ISelectionId;
 }
@@ -73,9 +74,12 @@ interface CardSettings {
         fill: string;
     };
 
-    info: {
+    label: {
         fontSize: number;
-        fillLabel: string;
+        fill: string;
+    },
+    data: {
+        fontSize: number,
     }
 }
 
@@ -90,12 +94,15 @@ let defaultSettings: CardSettings = {
         height: 170,
     },
     header: {
-        fontSize: 18,
+        fontSize: 16,
         fill: "#000000",
     },
-    info: {
-        fillLabel: "#D9D9D9",
-        fontSize: 14,
+    label: {
+        fill: "#000000",  //DADADA
+        fontSize: 15,
+    },
+    data: {
+        fontSize: 15,
     }
 }
 
@@ -143,9 +150,12 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
                 .solid.color,
             fontSize: getValue<number>(objects, "header", "fontSize", defaultSettings.header.fontSize)
         },
-        info: {
-            fontSize: getValue<number>(objects, "info", "fontSize", defaultSettings.info.fontSize),
-            fillLabel: getValue<string>(objects, "info", "fillLabel", defaultSettings.info.fillLabel)
+        label: {
+            fontSize: getValue<number>(objects, "label", "fontSize", defaultSettings.label.fontSize),
+            fill: getValue<string>(objects, "label", "fill", defaultSettings.label.fill)
+        },
+        data:{
+            fontSize: getValue<number>(objects, "data", "fontSize", defaultSettings.data.fontSize),
         }
     }
 
@@ -156,23 +166,28 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
     }
 
     for (let index = 0, len = Math.max(categoryImage.values.length, categoryTitle.values.length, dataValue[0].values.length); index < len; index++) {
-        const info: { colorValue: string, label: string, value: PrimitiveValue }[] = []
+        const labels: { value: string }[] = []
+        const data: { fill: string, value: PrimitiveValue }[] = []
 
         for (let j = 0; j < dataValue.length; j++) {
             let indexCategory = index;
-            info.push(
+            labels.push(
                 {
-                    colorValue: getCategoricalObjectValue<Fill>(
+                    value: <string>getNameMeasure(dataValue, index, j),
+                }
+            );
+            data.push(
+                {
+                    fill: getCategoricalObjectValue<Fill>(
                         categoryImage,
                         indexCategory,
                         'colorSelector' + (j + 1),
                         'fill',
                         defaultColor
                     ).solid.color,
-                    label: <string>getNameMeasure(dataValue, index, j),
-                    value: getValueMeasure(dataValue, index, j)
+                    value: getValueMeasure(dataValue, index, j),
                 }
-            )
+            );
         }
 
         const selectionId: ISelectionId = host.createSelectionIdBuilder().withCategory(categoryImage, index).createSelectionId();
@@ -181,7 +196,8 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
             selectionId: selectionId,
             url: `${categoryImage.values[index]}`,
             header: `${categoryTitle.values[index]}`,
-            info: info
+            label: labels,
+            data: data
         })
 
     }
@@ -210,10 +226,42 @@ export class Visual implements IVisual {
     private LandingPageRemoved: boolean;
     private LandingPage: Selection<any>;
 
-    static Config() {
+
+    private quantityMeasures: number = 0;
+    private quantityCard: number = 0;
+
+    private config() {
+        let widthCard = defaultSettings.card.width;
+
         let imageIndentX = 10;
         let imageIndentY = 10;
-        let imageWidth = defaultSettings.card.width - imageIndentX * 2;
+        let imageWidth = this.cardDataSettings.card.width - imageIndentX * 2;
+
+        let headerPaddingTop = 15;
+        let headerCoordinateY = imageIndentY * 2 + this.cardDataSettings.image.height + headerPaddingTop;
+        let headerCoordinateX = this.cardDataSettings.card.width / 2;
+
+        let labelCoordinates: { x: number, y: number }[] = [];
+        let dataCoordinates: { x: number, y: number }[] = [];
+        let dataPaddingTop = 10;
+
+        if (this.cardDataPoints[0]) {
+            if (this.cardDataPoints[0].data) {
+                for (let i = 0; i < this.quantityMeasures; i++) {
+                    let labelFontSize = this.cardDataSettings.label.fontSize;
+                    let labelCoordinateX = 10;
+                    let labelCoordinateY = headerCoordinateY + (dataPaddingTop + labelFontSize) * (i + 1);
+
+                    let dataCoordinateX = widthCard - labelCoordinateX;
+                    let dataCoordinateY = labelCoordinateY;
+                    labelCoordinates.push({ x: labelCoordinateX, y: labelCoordinateY });
+                    dataCoordinates.push({ x: dataCoordinateX, y: dataCoordinateY });
+                }
+            }
+        }
+
+
+
 
         return {
             card: {
@@ -227,17 +275,27 @@ export class Visual implements IVisual {
             },
 
             image: {
-                indentX: 10,
-                indentY: 10,
+                indentX: imageIndentX,
+                indentY: imageIndentY,
                 width: imageWidth,
+                coordinateX: imageIndentX,
+                coordinateY: imageIndentY,
             },
 
             header: {
-                paddingTop: 15
+                paddingTop: headerPaddingTop,
+                coordinateX: headerCoordinateX,
+                coordinateY: headerCoordinateY,
             },
 
-            info: {
-                paddingTop: 15
+            data: {
+                paddingTop: dataPaddingTop,
+                coordinate: dataCoordinates
+            },
+
+            label: {
+                paddingTop: dataPaddingTop,
+                coordinate: labelCoordinates
             }
         }
     }
@@ -247,7 +305,6 @@ export class Visual implements IVisual {
         this.host = options.host;
         this.element = options.element;
         this.selectionManager = options.host.createSelectionManager();
-
 
         this.selectionManager.registerOnSelectCallback(() => {
             this.syncSelectionState(this.cardSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
@@ -268,7 +325,7 @@ export class Visual implements IVisual {
         }
 
         if (!selectionIds.length) {
-            const opacity: number = this.cardDataSettings.card.opacity / 100;
+            const opacity: number = this.cardDataSettings.card.opacity / 50;
             selection
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
@@ -278,12 +335,17 @@ export class Visual implements IVisual {
 
         const self: this = this;
 
+        let solidOpacity = this.config().card.solidOpacity
+        let transparentOpacity = this.config().card.transparentOpacity
+
+        
         selection.each(function (cardDataPoint: CardDataPoint) {
+            
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, cardDataPoint.selectionId);
 
             const opacity: number = isSelected
-                ? Visual.Config().card.solidOpacity
-                : Visual.Config().card.transparentOpacity;
+                ? solidOpacity
+                : transparentOpacity;
 
             d3Select(this)
                 .style("fill-opacity", opacity)
@@ -347,6 +409,10 @@ export class Visual implements IVisual {
         let settings = this.cardDataSettings = viewModel.settings;
         this.cardDataPoints = viewModel.data;
 
+        
+        this.quantityMeasures = this.cardDataPoints[0].data.length;
+        this.quantityCard = this.cardDataPoints.length;
+
         let width = options.viewport.width; //ширина визуального элемента
         let height = options.viewport.height;   //высота визуального элемента
 
@@ -357,7 +423,7 @@ export class Visual implements IVisual {
 
         if (height < heightSvg) {
             this.turnOnScrollable();
-            heightSvg += Visual.Config().card.indentOutY;
+            heightSvg += this.config().card.indentOutY;
         }
         else {
             this.turnOffScrollable();
@@ -382,6 +448,9 @@ export class Visual implements IVisual {
             .data(this.cardDataPoints);
 
 
+        const opacity: number = viewModel.settings.card.opacity / 100;
+
+
         const cardSelectionMerged = this.cardSelection
             .enter()
             .append('g')
@@ -392,58 +461,75 @@ export class Visual implements IVisual {
 
         cardSelectionMerged.classed('bar', true);
 
-        const opacity: number = viewModel.settings.card.opacity / 100;
 
         cardSelectionMerged
             .append("rect")
             .attr("width", settings.card.width)
-            .attr("height", this.getHeightCard(viewModel))
+            .attr("height", this.getHeightCard(viewModel)) 
             .attr("y", 0)
-            .attr("x", 0)
-            .style("fill-opacity", opacity)
-            .style("stroke-opacity", opacity)
-            .style("fill", "#ffddff");
+            .attr("x", 0)     
+            .style("fill", "#ffddff")
+            .attr('rx', settings.card.borderRadius);
 
         cardSelectionMerged
             .append('defs')
             .append("clipPath")
             .attr("id", "round-corner")
             .append("rect")
-            .attr("x", Visual.Config().image.indentX)
-            .attr("y", Visual.Config().image.indentY)
-            .attr("width", settings.card.width - Visual.Config().image.indentX * 2)
+            .attr("x", this.config().image.indentX)
+            .attr("y", this.config().image.indentY)
+            .attr("width", settings.card.width - this.config().image.indentX * 2)
             .attr('height', settings.image.height)
             .attr('rx', settings.image.borderRadius);
 
 
+
         cardSelectionMerged
             .append("image")
-            .attr('x', Visual.Config().image.indentX)
-            .attr('y', Visual.Config().image.indentY)
+            .attr('x', this.config().image.coordinateX)
+            .attr('y', this.config().image.coordinateY)
             .attr('height', settings.image.height)
-            .attr('width', Visual.Config().image.width)
+            .attr('width', this.config().image.width)
             .attr('xlink:href', (d, i) => d.url)
             .attr("clip-path", "url(#round-corner)")
             .attr('preserveAspectRatio', 'xMidYMid slice');
 
-        // cardSelectionMerged
-        //     .append('text')
-        //     .attr('y', title.coordinateY)
-        //     .attr('x', title.coordinateX)
-        //     .attr('text-anchor', 'middle')
-        //     .style('font-size', settings.header.fontSize)
-        //     .style('fill', settings.header.fill)
-        //     .text((d, i) => d.header);
+        cardSelectionMerged
+            .append('text')
+            .attr('y', this.config().header.coordinateY)
+            .attr('x', this.config().header.coordinateX)
+            .attr('text-anchor', 'middle')
+            .style('font-size', settings.header.fontSize)
+            .style('fill', settings.header.fill)
+            .text((d, i) => d.header);
 
+            
+        for (let j = 0; j < this.quantityMeasures; j++) {
+            cardSelectionMerged
+                .append('text')
+                .attr('y', this.config().label.coordinate[j].y)
+                .attr('x', this.config().label.coordinate[j].x)
+                .style('font-size', settings.label.fontSize)
+                .style('fill', settings.label.fill)
+                .text((d, i) => d.label[j].value);
 
-
-        console.log(this.element);
+            cardSelectionMerged
+                .append('text')
+                .attr('y', this.config().data.coordinate[j].y)
+                .attr('x', this.config().data.coordinate[j].x)
+                .attr('text-anchor', 'end')
+                .style('font-size', settings.data.fontSize)
+                .style('fill', (d, i) => d.data[j].fill)
+                .text((d, i) => d.data[j].value);
+        }
 
 
         this.tooltipServiceWrapper.addTooltip(cardSelectionMerged,
             (datapoint: CardDataPoint) => this.getTooltipData(datapoint),
             (datapoint: CardDataPoint) => datapoint.selectionId
         );
+
+        
 
         cardSelectionMerged.on('click', (d) => {
 
@@ -471,23 +557,22 @@ export class Visual implements IVisual {
 
 
     private getTranslateCards(cards: CardViewModel, widthVisual: number): { translateX: Array<number>, translateY: Array<number> } {
-        let quantityCards = cards.data.length,
-            translateX = new Array<number>(quantityCards),
-            translateY = new Array<number>(quantityCards);
-        for (let i = 0; i < quantityCards; i++) {
+        let translateX = new Array<number>(this.quantityMeasures),
+            translateY = new Array<number>(this.quantityMeasures);
+        for (let i = 0; i < this.quantityCard; i++) {
             if (i === 0) {
-                translateX[i] = Visual.Config().card.indentOutX;
-                translateY[i] = Visual.Config().card.indentOutY;
+                translateX[i] = this.config().card.indentOutX;
+                translateY[i] = this.config().card.indentOutY;
             } else {
                 let prevCardsX = translateX[i - 1] + cards.settings.card.width;
-                let currentCardWidth = Visual.Config().card.indentInnerX + cards.settings.card.width + Visual.Config().card.indentOutX;
+                let currentCardWidth = this.config().card.indentInnerX + cards.settings.card.width + this.config().card.indentOutX;
 
                 if (widthVisual > prevCardsX + currentCardWidth) {
-                    translateX[i] = translateX[i - 1] + cards.settings.card.width + Visual.Config().card.indentInnerX;
+                    translateX[i] = translateX[i - 1] + cards.settings.card.width + this.config().card.indentInnerX;
                     translateY[i] = translateY[i - 1];
                 } else {
-                    translateX[i] = Visual.Config().card.indentOutX;
-                    translateY[i] = translateY[i - 1] + this.getHeightCard(cards) + Visual.Config().card.indentInnerY;
+                    translateX[i] = this.config().card.indentOutX;
+                    translateY[i] = translateY[i - 1] + this.getHeightCard(cards) + this.config().card.indentInnerY;
                 }
             }
         }
@@ -503,21 +588,21 @@ export class Visual implements IVisual {
             return 0
         }
 
-        let lengthInfo = cards.data[0].info.length; //количество мер
+        let lengthInfo = cards.data[0].data.length; //количество мер
 
         let headerViewModel = cards.settings.header;
         let imageViewModel = cards.settings.image;
-        let infoViewModel = cards.settings.info;
+        let labelViewModel = cards.settings.label;
 
-        let configCard = Visual.Config().card;
-        let configImage = Visual.Config().image;
-        let configHeader = Visual.Config().header;
-        let configInfo = Visual.Config().info;
-
+        let configCard = this.config().card;
+        let configImage = this.config().image;
+        let configHeader = this.config().header;
+        let configLabel = this.config().label;
+        let configData = this.config().data;
 
         let imageSize = configImage.indentY * 2 + imageViewModel.height;
         let headerSize = configHeader.paddingTop + headerViewModel.fontSize;
-        let infoSize = (configInfo.paddingTop + infoViewModel.fontSize) * lengthInfo;
+        let infoSize = (Math.max(configLabel.paddingTop, configData.paddingTop) + labelViewModel.fontSize) * lengthInfo;
 
         return imageSize + headerSize + infoSize;
     }
@@ -577,12 +662,21 @@ export class Visual implements IVisual {
                 });
                 break;
             case 'header':
-            case 'info':
                 objectEnumeration.push({
                     objectName: objectName,
                     properties: {
-                        fillLabel: this.cardDataSettings.info.fillLabel,
-                        fontSize: this.cardDataSettings.info.fontSize
+                        fontSize: this.cardDataSettings.header.fontSize,
+                        fill: this.cardDataSettings.header.fill
+                    },
+                    selector: null
+                });
+                break;
+            case 'label':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        fill: this.cardDataSettings.label.fill,
+                        fontSize: this.cardDataSettings.label.fontSize
                     },
                     selector: null
                 });
@@ -593,16 +687,16 @@ export class Visual implements IVisual {
 
     private colorSelector(numberMeasure: number, objectEnumeration: VisualObjectInstance[], objectName: string) {
         for (let i = 0; i < this.cardDataPoints.length; i++) {
-            if (this.cardDataPoints[i].info[numberMeasure - 1]) {
+            if (this.cardDataPoints[i].data) {
                 objectEnumeration.push({
                     objectName: objectName,
-                    displayName: 'Card ' + (i + 1) + ': ' + this.cardDataPoints[i].info[numberMeasure - 1].label,
+                    displayName: 'Card ' + (i + 1) + ': ' + this.cardDataPoints[i].label[numberMeasure - 1].value,
                     properties: {
                         fill: {
                             solid: {
-                                color: this.cardDataPoints[i].info[numberMeasure - 1].colorValue
+                                color: this.cardDataPoints[i].data[numberMeasure - 1].fill
                             }
-                        }
+                        },
                     },
                     propertyInstanceKind: {
                         fill: VisualEnumerationInstanceKinds.ConstantOrRule
