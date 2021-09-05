@@ -31,7 +31,7 @@ export function getValue<T>(objects: DataViewObjects,
     return defaultValue;
 }
 
-export function getValueMeasure(valuesMeasures: DataViewValueColumns, indexCard: number, indexMeasure: number):PrimitiveValue{
+export function getValueMeasure(valuesMeasures: powerbi.DataViewValueColumn[], indexCard: number, indexMeasure: number):PrimitiveValue{
     if(valuesMeasures){
         let values = valuesMeasures[indexMeasure];
         if(values){
@@ -43,7 +43,7 @@ export function getValueMeasure(valuesMeasures: DataViewValueColumns, indexCard:
     return null;
 }
 
-export function getNameMeasure(valuesMeasures: DataViewValueColumns, indexCard: number, indexMeasure: number):PrimitiveValue{
+export function getNameMeasure(valuesMeasures: powerbi.DataViewValueColumn[], indexCard: number, indexMeasure: number):PrimitiveValue{
     if(valuesMeasures){
         let values = valuesMeasures[indexMeasure];
         if(values){

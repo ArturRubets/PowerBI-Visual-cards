@@ -37,6 +37,7 @@ import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-vis
 import { getValue, getCategoricalObjectValue, getValueMeasure, getNameMeasure } from "./objectEnumerationUtility";
 
 import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
+import { values } from "d3";
 
 
 interface CardViewModel {
@@ -98,7 +99,7 @@ let defaultSettings: CardSettings = {
         fill: "#000000",
     },
     label: {
-        fill: "#909090", 
+        fill: "#909090",
         fontSize: 15,
     },
     data: {
@@ -126,10 +127,14 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         return viewModel;
     }
 
+
     let categorical = dataViews[0].categorical;
+    console.log(categorical);
+    
     let categoryImage = categorical.categories[0];
     let categoryTitle = categorical.categories[1];
-    let dataValue = categorical.values;
+    let dataValue = categorical.values.filter((value, index) => value.source.roles.measure === true);
+console.log(dataValue);
 
     let cardDataPoints: CardDataPoint[] = [];
 
@@ -153,14 +158,13 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         label: {
             fontSize: getValue<number>(objects, "label", "fontSize", defaultSettings.label.fontSize),
             fill: getValue<Fill>(objects, "label", "fill", { solid: { color: defaultSettings.label.fill } })
-            .solid.color,
+                .solid.color,
         },
-        data:{
+        data: {
             fontSize: getValue<number>(objects, "data", "fontSize", defaultSettings.data.fontSize),
         }
     }
-    console.log(cardSettings);
-    
+
 
     let defaultColor: Fill = {
         solid: {
@@ -204,6 +208,7 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         })
 
     }
+
 
     return {
         data: cardDataPoints,
@@ -306,6 +311,7 @@ export class Visual implements IVisual {
 
 
     constructor(options: VisualConstructorOptions) {
+
         this.host = options.host;
         this.element = options.element;
         this.selectionManager = options.host.createSelectionManager();
@@ -342,9 +348,9 @@ export class Visual implements IVisual {
         let solidOpacity = this.config().card.solidOpacity
         let transparentOpacity = this.config().card.transparentOpacity
 
-        
+
         selection.each(function (cardDataPoint: CardDataPoint) {
-            
+
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, cardDataPoint.selectionId);
 
             const opacity: number = isSelected
@@ -405,7 +411,7 @@ export class Visual implements IVisual {
         }
     }
 
-   
+
     private getTooltipData(value: CardDataPoint): VisualTooltipDataItem[] {
         return [{
             displayName: value.url,
@@ -575,27 +581,30 @@ export class Visual implements IVisual {
         // Clear selection when clicking outside a bar
         this.svg.on('click', (d) => {
             //if (this.host.allowInteractions) {
-                this.selectionManager
-                    .clear()
-                    .then(() => {
-                        this.syncSelectionState(barSelection, []);
-                    });
+            this.selectionManager
+                .clear()
+                .then(() => {
+                    this.syncSelectionState(barSelection, []);
+                });
             //}
         });
     }
 
     public update(options: VisualUpdateOptions) {
+        this.element.innerHTML = null;
 
         this.handleLandingPage(options);
         let viewModel: CardViewModel = visualTransform(options, this.host);
-
+debugger
         let settings = this.cardDataSettings = viewModel.settings;
         this.cardDataPoints = viewModel.data;
-        console.log(settings);
-        
-        
-        this.quantityMeasures = this.cardDataPoints[0].data.length;
+
+        this.quantityMeasures = this.cardDataPoints.length > 0? this.cardDataPoints[0].data.length: 0
+        if(this.quantityMeasures === 0){
+            return
+        }
         this.quantityCard = this.cardDataPoints.length;
+
 
         let width = options.viewport.width; //ширина визуального элемента
         let height = options.viewport.height;   //высота визуального элемента
@@ -603,8 +612,9 @@ export class Visual implements IVisual {
 
         let translates = this.getTranslateCards(viewModel, width);
 
+        
         let heightAllCards = Math.max(...translates.translateY) + this.getHeightCard(viewModel);
-
+        
         if (height < heightAllCards) {
             this.turnOnScrollable();
             heightAllCards += this.config().card.indentOutY;
@@ -613,8 +623,8 @@ export class Visual implements IVisual {
             this.turnOffScrollable();
         }
 
-
-        this.element.innerHTML = null;
+        
+       
         this.svg = d3Select(this.element)
             .append('svg')
             .classed('cardsVisual', true);
@@ -649,9 +659,9 @@ export class Visual implements IVisual {
         cardSelectionMerged
             .append("rect")
             .attr("width", settings.card.width)
-            .attr("height", this.getHeightCard(viewModel)) 
+            .attr("height", this.getHeightCard(viewModel))
             .attr("y", 0)
-            .attr("x", 0)     
+            .attr("x", 0)
             .style("fill", this.config().card.fill)
             .attr('rx', settings.card.borderRadius);
 
@@ -687,8 +697,7 @@ export class Visual implements IVisual {
             .style('fill', settings.header.fill)
             .text((d, i) => d.header);
 
-            console.log(settings.label.fill);
-            
+
         for (let j = 0; j < this.quantityMeasures; j++) {
             //label
             cardSelectionMerged
@@ -716,7 +725,7 @@ export class Visual implements IVisual {
             (datapoint: CardDataPoint) => datapoint.selectionId
         );
 
-        
+
 
         cardSelectionMerged.on('click', (d) => {
 
