@@ -218,5 +218,6 @@
     },
     "sorting": {
         "default": {   }
-    }
+    },
+    "supportsMultiVisualSelection": true
 }

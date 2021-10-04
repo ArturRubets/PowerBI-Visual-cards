@@ -340,6 +340,10 @@ export class Visual implements IVisual {
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
 
+            selection
+                .selectAll('image')
+                .style('opacity', opacity)
+
             return;
         }
 
@@ -360,6 +364,11 @@ export class Visual implements IVisual {
             d3Select(this)
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
+
+                
+            d3Select(this)
+                    .selectAll('image')
+                    .style('opacity', opacity)
         });
     }
 
@@ -595,7 +604,7 @@ export class Visual implements IVisual {
 
         this.handleLandingPage(options);
         let viewModel: CardViewModel = visualTransform(options, this.host);
-debugger
+
         let settings = this.cardDataSettings = viewModel.settings;
         this.cardDataPoints = viewModel.data;
 
@@ -742,6 +751,10 @@ debugger
             (<Event>getEvent()).stopPropagation();
             //}
         });
+
+
+        this.syncSelectionState(cardSelectionMerged, this.selectionManager.getSelectionIds() as ISelectionId[]);
+
 
         this.handleClick(cardSelectionMerged);
     }
