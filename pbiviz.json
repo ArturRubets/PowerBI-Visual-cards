@@ -1,1 +1,25 @@
-{"visual":{"name":"cards","displayName":"Cards","guid":"cards58361000EA1F4447A1DF5227CBA11D14","visualClassName":"Visual","version":"1.0.0","description":"","supportUrl":"","gitHubUrl":""},"apiVersion":"3.8.0","author":{"name":"","email":""},"assets":{"icon":"assets/icon.png"},"externalJS":null,"style":"style/visual.less","capabilities":"capabilities.json","dependencies":null,"stringResources":[]}
+{
+    "visual": {
+        "name": "cards",
+        "displayName": "Cards",
+        "guid": "cards58361000EA1F4447A1DF5227CBA11D14",
+        "visualClassName": "Visual",
+        "version": "1.0.0",
+        "description": "Custom cards",
+        "supportUrl": "https://docs.microsoft.com/ru-ru/power-bi/developer/visuals/",
+        "gitHubUrl": ""
+    },
+    "apiVersion": "3.8.0",
+    "author": {
+        "name": "Artur Rubets",
+        "email": "artue.rubets@gmail.com"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": null,
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": []
+}
