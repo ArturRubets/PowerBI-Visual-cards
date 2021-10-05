@@ -129,12 +129,11 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
 
 
     let categorical = dataViews[0].categorical;
-    console.log(categorical);
-    
+
     let categoryImage = categorical.categories[0];
     let categoryTitle = categorical.categories[1];
     let dataValue = categorical.values.filter((value, index) => value.source.roles.measure === true);
-console.log(dataValue);
+
 
     let cardDataPoints: CardDataPoint[] = [];
 
@@ -244,8 +243,8 @@ export class Visual implements IVisual {
         let imageIndentX = 10;
         let imageIndentY = 10;
         let imageWidth = this.cardDataSettings.card.width - imageIndentX * 2;
-
-        let headerPaddingTop = 15;
+        
+        let headerPaddingTop = this.cardDataSettings.header.fontSize;
         let headerCoordinateY = imageIndentY * 2 + this.cardDataSettings.image.height + headerPaddingTop;
         let headerCoordinateX = this.cardDataSettings.card.width / 2;
 
@@ -276,9 +275,9 @@ export class Visual implements IVisual {
                 indentOutX: 20,
                 indentInnerX: 15,
                 indentOutY: 20,
-                indentInnerY: 10,
+                indentInnerY: 20,
                 solidOpacity: 1,
-                transparentOpacity: 0.5,
+                transparentOpacity: 0.3,
                 paddingBottom: 10,
                 fill: "#ffffff",
             },
@@ -336,14 +335,25 @@ export class Visual implements IVisual {
 
         if (!selectionIds.length) {
             const opacity: number = this.cardDataSettings.card.opacity / 100;
+            // selection
+            //     .style("fill-opacity", opacity)
+            //     .style("stroke-opacity", opacity);
+         
+            
             selection
-                .style("fill-opacity", opacity)
+                .selectAll('image')
+                .style("opacity", opacity)
                 .style("stroke-opacity", opacity);
 
             selection
-                .selectAll('image')
-                .style('opacity', opacity)
-
+                .selectAll('text')
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
+            
+            selection
+                .selectAll('rect')
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
             return;
         }
 
@@ -361,14 +371,26 @@ export class Visual implements IVisual {
                 ? solidOpacity
                 : transparentOpacity;
 
-            d3Select(this)
-                .style("fill-opacity", opacity)
-                .style("stroke-opacity", opacity);
+            // d3Select(this)
+            //     .style("fill-opacity", opacity)
+            //     .style("stroke-opacity", opacity);
 
                 
             d3Select(this)
-                    .selectAll('image')
-                    .style('opacity', opacity)
+                .selectAll('image')
+                .style("opacity", opacity)
+                .style("stroke-opacity", opacity);
+
+            d3Select(this)
+                .selectAll('text')
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
+            
+            d3Select(this)
+                .selectAll('rect')
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
+    
         });
     }
 
@@ -542,6 +564,14 @@ export class Visual implements IVisual {
                         fontSize: this.cardDataSettings.header.fontSize,
                         fill: this.cardDataSettings.header.fill
                     },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
+                    },
                     selector: null
                 });
                 break;
@@ -550,7 +580,32 @@ export class Visual implements IVisual {
                     objectName: objectName,
                     properties: {
                         fill: this.cardDataSettings.label.fill,
-                        fontSize: this.cardDataSettings.label.fontSize
+                        fontSize: this.cardDataSettings.label.fontSize,
+                    },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
+                    },
+                    selector: null
+                });
+                break;
+            case 'data':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        fontSize: this.cardDataSettings.data.fontSize,
+                    },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
                     },
                     selector: null
                 });
@@ -674,6 +729,7 @@ export class Visual implements IVisual {
             .style("fill", this.config().card.fill)
             .attr('rx', settings.card.borderRadius);
 
+        const widthCard = settings.card.width - this.config().image.indentX * 2
         cardSelectionMerged
             .append('defs')
             .append("clipPath")
@@ -681,7 +737,7 @@ export class Visual implements IVisual {
             .append("rect")
             .attr("x", this.config().image.indentX)
             .attr("y", this.config().image.indentY)
-            .attr("width", settings.card.width - this.config().image.indentX * 2)
+            .attr("width", widthCard)
             .attr('height', settings.image.height)
             .attr('rx', settings.image.borderRadius);
 
@@ -697,12 +753,15 @@ export class Visual implements IVisual {
             .attr("clip-path", "url(#round-corner)")
             .attr('preserveAspectRatio', 'xMidYMid slice');
 
+       
+            
         cardSelectionMerged
             .append('text')
             .attr('y', this.config().header.coordinateY)
             .attr('x', this.config().header.coordinateX)
             .attr('text-anchor', 'middle')
             .style('font-size', settings.header.fontSize)
+            .style('font-weight', 500)
             .style('fill', settings.header.fill)
             .text((d, i) => d.header);
 
@@ -717,12 +776,13 @@ export class Visual implements IVisual {
                 .style('fill', settings.label.fill)
                 .text((d, i) => d.label[j].value);
 
+                
             //data
             cardSelectionMerged
                 .append('text')
                 .attr('y', this.config().data.coordinate[j].y)
-                .attr('x', this.config().data.coordinate[j].x)
-                .attr('text-anchor', 'end')
+                .attr('x', widthCard + this.config().label.coordinate[j].x)
+                 .attr('text-anchor', 'end')
                 .style('font-size', settings.data.fontSize)
                 .style('fill', (d, i) => d.data[j].fill)
                 .text((d, i) => d.data[j].value);
