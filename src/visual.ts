@@ -445,9 +445,9 @@ export class Visual implements IVisual {
 
     private getTooltipData(value: CardDataPoint): VisualTooltipDataItem[] {
         return [{
-            displayName: value.url,
+            displayName: value.header,
             value: value.header.toString(),
-            color: "#ff00ff"
+            color: "#fff"
         }];
     }
 
