@@ -198,7 +198,17 @@
                         }
                     ]
                 }
-            }
+            },
+            "conditions": [
+                {
+                    "categoryUrl": {
+                        "max": 1
+                    },
+                    "categoryHeader":{
+                        "max": 1
+                    }
+                }
+            ]
         }
     ],
     "tooltips": {
