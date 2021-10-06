@@ -36,14 +36,15 @@ import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-vis
 
 import { getValue, getCategoricalObjectValue, getValueMeasure, getNameMeasure } from "./objectEnumerationUtility";
 
-import { dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
+import { dataViewWildcard, dataViewObjects } from "powerbi-visuals-utils-dataviewutils";
 import { values } from "d3";
-
 
 interface CardViewModel {
     data: CardDataPoint[];
     settings: CardSettings;
 }
+
+
 
 interface CardDataPoint {
     url: string; // category data
@@ -81,6 +82,11 @@ interface CardSettings {
     },
     data: {
         fontSize: number,
+    },
+    title: {
+        text: string;
+        hide: boolean;
+        fontSizeTitle: number;
     }
 }
 
@@ -104,6 +110,11 @@ let defaultSettings: CardSettings = {
     },
     data: {
         fontSize: 15,
+    },
+    title: {
+        hide: false,
+        text: "Expected Top Sellers",
+        fontSizeTitle: 22
     }
 }
 
@@ -161,6 +172,11 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): CardV
         },
         data: {
             fontSize: getValue<number>(objects, "data", "fontSize", defaultSettings.data.fontSize),
+        },
+        title: {
+            hide: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "hide" }, defaultSettings.title.hide),
+            text: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "text" }, defaultSettings.title.text),
+            fontSizeTitle: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "fontSizeTitle" }, defaultSettings.title.fontSizeTitle),
         }
     }
 
@@ -243,7 +259,7 @@ export class Visual implements IVisual {
         let imageIndentX = 10;
         let imageIndentY = 10;
         let imageWidth = this.cardDataSettings.card.width - imageIndentX * 2;
-        
+
         let headerPaddingTop = this.cardDataSettings.header.fontSize;
         let headerCoordinateY = imageIndentY * 2 + this.cardDataSettings.image.height + headerPaddingTop;
         let headerCoordinateX = this.cardDataSettings.card.width / 2;
@@ -274,7 +290,7 @@ export class Visual implements IVisual {
             card: {
                 indentOutX: 20,
                 indentInnerX: 15,
-                indentOutY: 20,
+                indentOutY: 50,
                 indentInnerY: 20,
                 solidOpacity: 1,
                 transparentOpacity: 0.3,
@@ -309,7 +325,9 @@ export class Visual implements IVisual {
     }
 
 
+
     constructor(options: VisualConstructorOptions) {
+        
 
         this.host = options.host;
         this.element = options.element;
@@ -338,8 +356,8 @@ export class Visual implements IVisual {
             // selection
             //     .style("fill-opacity", opacity)
             //     .style("stroke-opacity", opacity);
-         
-            
+
+
             selection
                 .selectAll('image')
                 .style("opacity", opacity)
@@ -349,7 +367,7 @@ export class Visual implements IVisual {
                 .selectAll('text')
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
-            
+
             selection
                 .selectAll('rect')
                 .style("fill-opacity", opacity)
@@ -375,7 +393,7 @@ export class Visual implements IVisual {
             //     .style("fill-opacity", opacity)
             //     .style("stroke-opacity", opacity);
 
-                
+
             d3Select(this)
                 .selectAll('image')
                 .style("opacity", opacity)
@@ -385,12 +403,12 @@ export class Visual implements IVisual {
                 .selectAll('text')
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
-            
+
             d3Select(this)
                 .selectAll('rect')
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
-    
+
         });
     }
 
@@ -453,8 +471,10 @@ export class Visual implements IVisual {
 
 
     private getTranslateCards(cards: CardViewModel, widthVisual: number): { translateX: Array<number>, translateY: Array<number> } {
-        let translateX = new Array<number>(this.quantityMeasures),
-            translateY = new Array<number>(this.quantityMeasures);
+        let translateX = new Array<number>(this.quantityCard),
+            translateY = new Array<number>(this.quantityCard);
+
+
         for (let i = 0; i < this.quantityCard; i++) {
             if (i === 0) {
                 translateX[i] = this.config().card.indentOutX;
@@ -553,6 +573,25 @@ export class Visual implements IVisual {
                     properties: {
                         borderRadius: this.cardDataSettings.image.borderRadius,
                         height: this.cardDataSettings.image.height
+                    },
+                    selector: null
+                });
+                break;
+            case 'title':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        text: this.cardDataSettings.title.text,
+                        hide: this.cardDataSettings.title.hide,
+                        fontSizeTitle: this.cardDataSettings.title.fontSizeTitle
+                    },
+                    validValues: {
+                        fontSizeTitle: {
+                            numberRange: {
+                                min: 6,
+                                max: 40
+                            }
+                        }
                     },
                     selector: null
                 });
@@ -663,11 +702,13 @@ export class Visual implements IVisual {
         let settings = this.cardDataSettings = viewModel.settings;
         this.cardDataPoints = viewModel.data;
 
-        this.quantityMeasures = this.cardDataPoints.length > 0? this.cardDataPoints[0].data.length: 0
-        if(this.quantityMeasures === 0){
+        this.quantityMeasures = this.cardDataPoints.length > 0 ? this.cardDataPoints[0].data.length : 0
+        if (this.quantityMeasures === 0) {
             return
         }
+
         this.quantityCard = this.cardDataPoints.length;
+
 
 
         let width = options.viewport.width; //ширина визуального элемента
@@ -676,9 +717,9 @@ export class Visual implements IVisual {
 
         let translates = this.getTranslateCards(viewModel, width);
 
-        
-        let heightAllCards = Math.max(...translates.translateY) + this.getHeightCard(viewModel);
-        
+
+        let heightAllCards = Math.max(...translates.translateY.filter(d => d !== undefined)) + this.getHeightCard(viewModel);
+
         if (height < heightAllCards) {
             this.turnOnScrollable();
             heightAllCards += this.config().card.indentOutY;
@@ -687,8 +728,8 @@ export class Visual implements IVisual {
             this.turnOffScrollable();
         }
 
-        
-       
+
+
         this.svg = d3Select(this.element)
             .append('svg')
             .classed('cardsVisual', true);
@@ -700,6 +741,19 @@ export class Visual implements IVisual {
         this.svg
             .attr("width", width)
             .attr("height", Math.max(heightAllCards, height));
+
+            let fontSizeTitle = settings.title.fontSizeTitle
+            
+            this.svg.selectAll('text.title').remove()
+             if (!settings.title.hide) {
+                this.svg
+                    .append('text')
+                    .text(settings.title.text)
+                    .classed('title', true)
+                    .attr("transform", `translate(${this.config().card.indentOutX - 9}, ${fontSizeTitle * 1.5})`)
+                    .style('font-size', fontSizeTitle)
+             }
+
 
         this.cardSelection = this.cardContainer
             .selectAll('.card')
@@ -753,8 +807,8 @@ export class Visual implements IVisual {
             .attr("clip-path", "url(#round-corner)")
             .attr('preserveAspectRatio', 'xMidYMid slice');
 
-       
-            
+
+
         cardSelectionMerged
             .append('text')
             .attr('y', this.config().header.coordinateY)
@@ -776,13 +830,13 @@ export class Visual implements IVisual {
                 .style('fill', settings.label.fill)
                 .text((d, i) => d.label[j].value);
 
-                
+
             //data
             cardSelectionMerged
                 .append('text')
                 .attr('y', this.config().data.coordinate[j].y)
                 .attr('x', widthCard + this.config().label.coordinate[j].x)
-                 .attr('text-anchor', 'end')
+                .attr('text-anchor', 'end')
                 .style('font-size', settings.data.fontSize)
                 .style('fill', (d, i) => d.data[j].fill)
                 .text((d, i) => d.data[j].value);

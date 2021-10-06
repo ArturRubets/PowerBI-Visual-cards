@@ -22,6 +22,29 @@
         }
     ],
     "objects": {
+        "title":{
+            "displayName": "Title",
+            "properties": {
+                "text": {
+                    "displayName": "Text",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "hide": {
+                    "displayName": "Hide",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "fontSizeTitle": {
+                    "displayName": "Font size title",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
         "colorSelector1": {
             "displayName": "Data colors for measure 1",
             "properties": {
