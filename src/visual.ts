@@ -253,6 +253,13 @@ export class Visual implements IVisual {
     private quantityMeasures: number = 0;
     private quantityCard: number = 0;
 
+    static indents = {
+        indentOutX: 20,
+        indentInnerX: 15,
+        indentOutY: 25,
+        indentInnerY: 20
+    }
+
     private config() {
         let widthCard = defaultSettings.card.width;
 
@@ -288,10 +295,10 @@ export class Visual implements IVisual {
 
         return {
             card: {
-                indentOutX: 20,
-                indentInnerX: 15,
-                indentOutY: 50,
-                indentInnerY: 20,
+                indentOutX: Visual.indents.indentOutX,
+                indentInnerX: Visual.indents.indentInnerX,
+                indentOutY: Visual.indents.indentOutY,
+                indentInnerY: Visual.indents.indentInnerY,
                 solidOpacity: 1,
                 transparentOpacity: 0.3,
                 paddingBottom: 10,
@@ -470,15 +477,15 @@ export class Visual implements IVisual {
     }
 
 
-    private getTranslateCards(cards: CardViewModel, widthVisual: number): { translateX: Array<number>, translateY: Array<number> } {
+    private getTranslateCards(cards: CardViewModel, widthVisual: number, settings): { translateX: Array<number>, translateY: Array<number> } {
         let translateX = new Array<number>(this.quantityCard),
             translateY = new Array<number>(this.quantityCard);
 
-
+         
         for (let i = 0; i < this.quantityCard; i++) {
             if (i === 0) {
                 translateX[i] = this.config().card.indentOutX;
-                translateY[i] = this.config().card.indentOutY;
+                translateY[i] = this.config().card.indentOutY + settings.title.fontSizeTitle * 1.5;
             } else {
                 let prevCardsX = translateX[i - 1] + cards.settings.card.width;
                 let currentCardWidth = this.config().card.indentInnerX + cards.settings.card.width + this.config().card.indentOutX;
@@ -695,7 +702,7 @@ export class Visual implements IVisual {
 
     public update(options: VisualUpdateOptions) {
         this.element.innerHTML = null;
-
+        
         this.handleLandingPage(options);
         let viewModel: CardViewModel = visualTransform(options, this.host);
 
@@ -710,14 +717,19 @@ export class Visual implements IVisual {
         this.quantityCard = this.cardDataPoints.length;
 
 
+        let fontSizeTitle = settings.title.fontSizeTitle
+
+
 
         let width = options.viewport.width; //ширина визуального элемента
         let height = options.viewport.height;   //высота визуального элемента
 
 
-        let translates = this.getTranslateCards(viewModel, width);
 
+        let translates = this.getTranslateCards(viewModel, width, settings);
 
+        
+        
         let heightAllCards = Math.max(...translates.translateY.filter(d => d !== undefined)) + this.getHeightCard(viewModel);
 
         if (height < heightAllCards) {
@@ -742,18 +754,23 @@ export class Visual implements IVisual {
             .attr("width", width)
             .attr("height", Math.max(heightAllCards, height));
 
-            let fontSizeTitle = settings.title.fontSizeTitle
-            
+           
             this.svg.selectAll('text.title').remove()
              if (!settings.title.hide) {
                 this.svg
                     .append('text')
                     .text(settings.title.text)
                     .classed('title', true)
-                    .attr("transform", `translate(${this.config().card.indentOutX - 9}, ${fontSizeTitle * 1.5})`)
+                    .attr("transform", `translate(${this.config().card.indentOutX}, ${fontSizeTitle * 1.5})`)
                     .style('font-size', fontSizeTitle)
              }
 
+            
+             
+     
+
+      
+         
 
         this.cardSelection = this.cardContainer
             .selectAll('.card')
