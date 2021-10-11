@@ -472,7 +472,7 @@ export class Visual implements IVisual {
         return [{
             displayName: value.header,
             value: value.header.toString(),
-            color: "#fff"
+           // color: "#fff"
         }];
     }
 
